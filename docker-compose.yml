@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+    ports:
+      - "8080:8000"
+    environment: &app-env
+      APP_URL: http://app.promptedit-home-assessment.orb.local
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: promptedit
+      DB_USERNAME: promptedit
+      DB_PASSWORD: secret
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      SESSION_DRIVER: database
+      PIXELFORGE_BASE_URL: https://pixelforge.promptedit.dev/v1
+      PIXELFORGE_API_KEY: ${PIXELFORGE_API_KEY:-}
+      PIXELFORGE_WEBHOOK_SECRET: ${PIXELFORGE_WEBHOOK_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  node:
+    image: node:22-bookworm-slim
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - node_modules:/var/www/html/node_modules
+    ports:
+      - "5175:5175"
+    command: ["npm", "run", "dev"]
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: promptedit
+      POSTGRES_USER: promptedit
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U promptedit -d promptedit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3"]
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+
+volumes:
+  vendor:
+  node_modules:
+  db_data:

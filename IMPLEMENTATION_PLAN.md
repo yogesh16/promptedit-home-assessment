@@ -11,14 +11,14 @@
 
 ## Phase 0 — Repository inspection
 
-- [ ] Inspect repository structure.
-- [ ] Identify Laravel, PHP, Vue and Inertia versions.
-- [ ] Identify database and frontend package manager.
-- [ ] Review existing authentication and starter components.
-- [ ] Check existing tests and coding conventions.
-- [ ] Read official Pixelforge documentation through the `pixelforge-api` skill.
-- [ ] Identify deployment environment and configuration requirements.
-- [ ] Propose the simplest implementation architecture.
+- [x] Inspect repository structure.
+- [x] Identify Laravel, PHP, Vue and Inertia versions.
+- [x] Identify database and frontend package manager.
+- [x] Review existing authentication and starter components.
+- [x] Check existing tests and coding conventions.
+- [x] Read official Pixelforge documentation through the `pixelforge-api` skill.
+- [x] Identify deployment environment and configuration requirements.
+- [x] Propose the simplest implementation architecture.
 
 **Deliverable:** Inspection report and implementation approach.
 
@@ -26,13 +26,13 @@ Do not modify application code before the initial inspection and plan are approv
 
 ## Phase 1 — Application foundation
 
-- [ ] Configure application environment.
-- [ ] Configure database.
-- [ ] Implement or reuse authentication.
-- [ ] Establish generation data model.
-- [ ] Add database migrations and constraints.
-- [ ] Create basic authenticated application layout.
-- [ ] Add foundational tests.
+- [x] Configure application environment.
+- [x] Configure database.
+- [x] Implement or reuse authentication.
+- [x] Establish generation data model.
+- [x] Add database migrations and constraints.
+- [x] Create basic authenticated application layout.
+- [x] Add foundational tests.
 
 **Deliverable:** Working authenticated application.
 
@@ -137,7 +137,15 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 0 — Repository inspection
+**Current phase:** Phase 2 — Pixelforge integration
+
+Phase 0 (inspection) and Phase 1 (application foundation) are complete:
+
+- Docker Compose environment: `app`, `node`, `db` (PostgreSQL 17), `queue`, `scheduler`.
+- Laravel 12 + official Vue/Inertia starter kit with authentication.
+- `generations` data model with unique idempotency key and provider ID constraints.
+- Generation history page with per-user scoping.
+- Test suite: 36 passing (PHPUnit/Pest, in-memory SQLite).
 
 Do not mark a task complete without verifying it.
 
