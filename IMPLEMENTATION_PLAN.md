@@ -92,16 +92,16 @@ Refer to the `pixelforge-api` skill for all provider-specific requirements.
 
 ## Phase 6 — End-to-end testing
 
-- [ ] Test registration and authentication.
-- [ ] Test generation submission.
-- [ ] Test successful generation.
-- [ ] Test failed generation.
-- [ ] Test duplicate submission.
-- [ ] Test duplicate and out-of-order webhooks.
-- [ ] Test missed webhook recovery.
-- [ ] Test user authorization.
-- [ ] Test frontend production build.
-- [ ] Run complete automated test suite.
+- [x] Test registration and authentication.
+- [x] Test generation submission.
+- [x] Test successful generation.
+- [x] Test failed generation.
+- [x] Test duplicate submission.
+- [x] Test duplicate and out-of-order webhooks.
+- [x] Test missed webhook recovery.
+- [x] Test user authorization.
+- [x] Test frontend production build.
+- [x] Run complete automated test suite.
 
 **Deliverable:** Stable core application.
 
@@ -137,9 +137,9 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 6 — End-to-end testing
+**Current phase:** Phase 7 — Deployment
 
-Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle), Phase 4 (user interface) and Phase 5 (financial verification) are complete.
+Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle), Phase 4 (user interface), Phase 5 (financial verification) and Phase 6 (end-to-end testing) are complete.
 
 Phase 1:
 
@@ -177,6 +177,7 @@ Phase 4:
 - History auto-refreshes every 5 seconds while any generation is queued or processing; loading, empty and error states are handled.
 - Desktop table and mobile card layouts share the same data.
 - Flash messages are now shared through Inertia.
+- Sidebar navigation fixed (items used `url` while links read `href`); GitHub/Documentation footer links removed; the default Welcome landing page was deleted and `/` now redirects guests to login and authenticated users to the dashboard.
 - Tests: 102 passing (363 assertions); `npm run build` and `npm run lint` pass.
 
 Test database isolation:
@@ -195,6 +196,17 @@ Phase 5:
 - `ProviderUsageReconciler` compares internal provider costs grouped by UTC completion date against `GET /usage`, preserves the provider's exact decimal string, enforces the 92-day limit, and reports per-day and total differences.
 - `php artisan pixelforge:reconcile --start=YYYY-MM-DD --end=YYYY-MM-DD` exits non-zero on discrepancies and never modifies records.
 - Tests: 115 passing (406 assertions).
+
+Phase 6:
+
+- `EndToEndGenerationFlowTest` covers register → estimate → submit → signed success webhook → history, and failed generations shown as free.
+- Webhook tests additionally prove raw-body signature verification (re-encoded JSON rejected), route absence from the `web` middleware group, and that the endpoint only persists and queues work.
+- Duplicate submission retries reuse the provider generation and cannot create a second local generation or charge.
+- Recovery tests cover polling, terminal skips and avoiding re-polling recently updated rows.
+- Image store tests validate PNG content, reject failed/non-PNG downloads and skip existing files.
+- Production frontend build (`npm run build`) and lint pass.
+- Full suite: 127 passing (506 assertions).
+- Live Pixelforge `[succeed]`/`[fail]`/`[duplicate]` smoke tests are pending real credentials; `PIXELFORGE_API_KEY` and `PIXELFORGE_WEBHOOK_SECRET` are not configured locally.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

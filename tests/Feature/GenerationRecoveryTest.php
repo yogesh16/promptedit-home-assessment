@@ -74,6 +74,21 @@ class GenerationRecoveryTest extends TestCase
         $this->assertSame(Generation::STATUS_SUCCEEDED, $generation->fresh()->status);
     }
 
+    public function test_recently_updated_generations_are_not_polled_again(): void
+    {
+        Generation::factory()->create([
+            'status' => Generation::STATUS_PROCESSING,
+            'provider_generation_id' => 'gen_recent',
+            'updated_at' => now(),
+        ]);
+
+        Http::fake();
+
+        $this->artisan('generations:recover')->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
     public function test_missing_image_for_a_succeeded_generation_is_retried(): void
     {
         $generation = Generation::factory()->create([

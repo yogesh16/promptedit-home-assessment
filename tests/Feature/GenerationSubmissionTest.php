@@ -479,6 +479,30 @@ class GenerationSubmissionTest extends TestCase
         $this->assertSame('0.063437500', $generation->customer_charge);
     }
 
+    public function test_duplicate_submission_retry_does_not_create_a_second_generation(): void
+    {
+        Http::fake([
+            '*/pricing' => Http::response($this->pricingPayload()),
+            '*/generations' => Http::response($this->queuedGenerationPayload(), 202, [
+                'Idempotent-Replayed' => 'true',
+            ]),
+        ]);
+
+        $this->actingAs(User::factory()->create())->post('/generations', $this->validPayload())
+            ->assertRedirect();
+
+        $generation = Generation::sole();
+        $this->assertSame('gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K', $generation->provider_generation_id);
+
+        (new SubmitGenerationJob($generation->id))->handle(app(PixelforgeClient::class));
+        (new SubmitGenerationJob($generation->id))->handle(app(PixelforgeClient::class));
+
+        $this->assertSame(1, Generation::count());
+        $this->assertSame('gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K', $generation->fresh()->provider_generation_id);
+        $this->assertNull($generation->fresh()->customer_charge);
+        Http::assertSentCount(2);
+    }
+
     public function test_pricing_failure_aborts_before_creating_a_generation(): void
     {
         Http::fake(['*/pricing' => Http::response([], 500)]);

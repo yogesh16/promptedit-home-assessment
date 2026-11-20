@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessPixelforgeWebhookJob;
 use App\Models\Generation;
 use App\Models\WebhookEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\FakesPixelforge;
@@ -42,6 +45,47 @@ class PixelforgeWebhookTest extends TestCase
 
         $this->assertSame(0, WebhookEvent::count());
         $this->assertSame(Generation::STATUS_QUEUED, $generation->fresh()->status);
+    }
+
+    public function test_signature_is_verified_against_the_raw_body_not_reencoded_json(): void
+    {
+        $payload = $this->webhookEvent('generation.succeeded', $this->succeededGenerationPayload());
+        [$body, $headers] = $this->signedWebhook($payload);
+
+        $reencoded = (string) json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        $this->assertNotSame($body, $reencoded);
+        $this->call('POST', '/webhooks/pixelforge', [], [], [], $headers, $reencoded)->assertStatus(400);
+
+        $this->assertSame(0, WebhookEvent::count());
+    }
+
+    public function test_webhook_route_is_outside_the_web_middleware_group(): void
+    {
+        $route = Route::getRoutes()->getByName('webhooks.pixelforge');
+
+        $this->assertNotNull($route);
+        $this->assertSame([], $route->gatherMiddleware());
+    }
+
+    public function test_webhook_request_persists_and_queues_processing_without_inline_work(): void
+    {
+        Queue::fake();
+
+        $generation = Generation::factory()->create(['provider_generation_id' => 'gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K']);
+
+        $object = $this->succeededGenerationPayload([
+            'metadata' => ['generation_id' => (string) $generation->id],
+        ]);
+
+        $this->postWebhook($this->webhookEvent('generation.succeeded', $object))->assertNoContent();
+
+        Queue::assertPushed(ProcessPixelforgeWebhookJob::class);
+
+        $event = WebhookEvent::sole();
+        $this->assertSame(WebhookEvent::STATUS_RECEIVED, $event->status);
+        $this->assertSame(Generation::STATUS_QUEUED, $generation->fresh()->status);
+        $this->assertNull($generation->fresh()->customer_charge);
     }
 
     public function test_expired_timestamp_is_rejected(): void
