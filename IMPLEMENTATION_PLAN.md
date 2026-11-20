@@ -177,7 +177,14 @@ Phase 4:
 - History auto-refreshes every 5 seconds while any generation is queued or processing; loading, empty and error states are handled.
 - Desktop table and mobile card layouts share the same data.
 - Flash messages are now shared through Inertia.
-- Tests: 99 passing (355 assertions); `npm run build` and `npm run lint` pass.
+- Tests: 102 passing (363 assertions); `npm run build` and `npm run lint` pass.
+
+Test database isolation:
+
+- `phpunit.xml` forces SQLite `:memory:` via both `<env force>` and `<server>` overrides (Docker injects real database settings through `$_SERVER`).
+- `tests/TestCase.php` aborts any test that is not using the in-memory SQLite driver.
+- `TestIsolationTest` asserts the connection, cache and queue drivers and that writes do not persist between tests.
+- CI no longer creates an on-disk SQLite file, since tests are fully in memory.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

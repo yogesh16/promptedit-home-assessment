@@ -181,6 +181,8 @@ Run backend tests:
 docker compose run --rm --no-deps app php artisan test
 ```
 
+Tests run against an in-memory SQLite database configured in `phpunit.xml`; they never touch the development PostgreSQL database. `tests/TestCase.php` fails fast if an unsafe database connection is configured.
+
 Build frontend assets:
 
 ```bash
