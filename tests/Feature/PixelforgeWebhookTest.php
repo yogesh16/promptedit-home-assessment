@@ -237,6 +237,90 @@ class PixelforgeWebhookTest extends TestCase
         $this->assertSame('0.063437500', $generation->customer_charge);
     }
 
+    public function test_succeeded_event_uses_generation_specific_rates(): void
+    {
+        $generation = Generation::factory()->create(['provider_generation_id' => 'gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K']);
+
+        $object = $this->succeededGenerationPayload([
+            'metadata' => ['generation_id' => (string) $generation->id],
+            'rates' => [
+                'input_text_tokens' => '5.00',
+                'input_image_tokens' => '10.00',
+                'output_tokens' => '45.00',
+                'reasoning_tokens' => '12.50',
+            ],
+            'usage' => [
+                'input_text_tokens' => 0,
+                'input_image_tokens' => 0,
+                'output_tokens' => 1000,
+                'reasoning_tokens' => 0,
+                'total_tokens' => 1000,
+            ],
+        ]);
+
+        $this->postWebhook($this->webhookEvent('generation.succeeded', $object))->assertNoContent();
+
+        $generation->refresh();
+        $this->assertSame('45.00', $generation->rates['output_tokens']);
+        $this->assertSame('0.045000000', $generation->provider_cost);
+        $this->assertSame('0.056250000', $generation->customer_charge);
+    }
+
+    public function test_duplicate_success_with_newer_rates_does_not_change_historical_financials(): void
+    {
+        $generation = Generation::factory()->create(['provider_generation_id' => 'gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K']);
+
+        $first = $this->succeededGenerationPayload(['metadata' => ['generation_id' => (string) $generation->id]]);
+        $this->postWebhook($this->webhookEvent('generation.succeeded', $first, 'evt_success_first'))->assertNoContent();
+
+        $second = $this->succeededGenerationPayload([
+            'metadata' => ['generation_id' => (string) $generation->id],
+            'rates' => [
+                'input_text_tokens' => '99.00',
+                'input_image_tokens' => '99.00',
+                'output_tokens' => '99.00',
+                'reasoning_tokens' => '99.00',
+            ],
+            'usage' => [
+                'input_text_tokens' => 9999,
+                'input_image_tokens' => 9999,
+                'output_tokens' => 9999,
+                'reasoning_tokens' => 9999,
+                'total_tokens' => 39996,
+            ],
+        ]);
+        $this->postWebhook($this->webhookEvent('generation.succeeded', $second, 'evt_success_second'))->assertNoContent();
+
+        $generation->refresh();
+        $this->assertSame('40.00', $generation->rates['output_tokens']);
+        $this->assertSame('0.050750000', $generation->provider_cost);
+        $this->assertSame('0.063437500', $generation->customer_charge);
+        $this->assertSame(1700, $generation->usage['total_tokens']);
+    }
+
+    public function test_failed_event_remains_free_even_when_usage_is_present(): void
+    {
+        $generation = Generation::factory()->create(['provider_generation_id' => 'gen_01JC2Z8Q4N6V0M3H7X5T9R2B1K']);
+
+        $object = $this->failedGenerationPayload([
+            'metadata' => ['generation_id' => (string) $generation->id],
+            'usage' => [
+                'input_text_tokens' => 100,
+                'input_image_tokens' => 0,
+                'output_tokens' => 1100,
+                'reasoning_tokens' => 500,
+                'total_tokens' => 1700,
+            ],
+        ]);
+
+        $this->postWebhook($this->webhookEvent('generation.failed', $object))->assertNoContent();
+
+        $generation->refresh();
+        $this->assertSame(Generation::STATUS_FAILED, $generation->status);
+        $this->assertNull($generation->provider_cost);
+        $this->assertNull($generation->customer_charge);
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */

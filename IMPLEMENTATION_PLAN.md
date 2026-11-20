@@ -80,13 +80,13 @@ Refer to the `pixelforge-api` skill for all provider-specific requirements.
 
 ## Phase 5 — Financial verification
 
-- [ ] Verify exact decimal calculations.
-- [ ] Verify 25% customer markup.
-- [ ] Verify failed generations are free.
-- [ ] Verify duplicate events cannot duplicate charges.
-- [ ] Verify generation-specific rates are preserved.
-- [ ] Implement provider usage reconciliation.
-- [ ] Add financial edge-case tests.
+- [x] Verify exact decimal calculations.
+- [x] Verify 25% customer markup.
+- [x] Verify failed generations are free.
+- [x] Verify duplicate events cannot duplicate charges.
+- [x] Verify generation-specific rates are preserved.
+- [x] Implement provider usage reconciliation.
+- [x] Add financial edge-case tests.
 
 **Deliverable:** Verified financial correctness.
 
@@ -137,9 +137,9 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 5 — Financial verification
+**Current phase:** Phase 6 — End-to-end testing
 
-Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle) and Phase 4 (user interface) are complete.
+Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle), Phase 4 (user interface) and Phase 5 (financial verification) are complete.
 
 Phase 1:
 
@@ -185,6 +185,16 @@ Test database isolation:
 - `tests/TestCase.php` aborts any test that is not using the in-memory SQLite driver.
 - `TestIsolationTest` asserts the connection, cache and queue drivers and that writes do not persist between tests.
 - CI no longer creates an on-disk SQLite file, since tests are fully in memory.
+
+Phase 5:
+
+- Money stays in 9-decimal nanodollar strings via bcmath only; no float arithmetic exists in `app/`.
+- Provider cost and customer charge are rounded half-up to the nanodollar (documented rule) so 25% markup stays representable and exact for documented rates.
+- Tests cover one-micro-dollar token costs, exact million-token totals, half-up edge cases, documented worked examples and 25% markup.
+- Webhook tests prove failed generations stay free (even with usage present), duplicate successes never double-charge or overwrite historical rates/usage, and generation-specific rates drive cost.
+- `ProviderUsageReconciler` compares internal provider costs grouped by UTC completion date against `GET /usage`, preserves the provider's exact decimal string, enforces the 92-day limit, and reports per-day and total differences.
+- `php artisan pixelforge:reconcile --start=YYYY-MM-DD --end=YYYY-MM-DD` exits non-zero on discrepancies and never modifies records.
+- Tests: 115 passing (406 assertions).
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

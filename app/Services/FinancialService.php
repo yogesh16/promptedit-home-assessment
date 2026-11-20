@@ -6,6 +6,8 @@ use InvalidArgumentException;
 
 class FinancialService
 {
+    private const string HALF_NANODOLLAR = '0.0000000005';
+
     private const array TOKEN_TYPES = [
         'input_text_tokens',
         'input_image_tokens',
@@ -41,14 +43,19 @@ class FinancialService
             );
         }
 
-        return bcadd($total, '0', 9);
+        return $this->roundToNanodollars($total);
     }
 
     /**
-     * Customer charge = provider cost × 1.25, exact decimal string.
+     * Customer charge = provider cost × 1.25, rounded half-up to nanodollars.
      */
     public function customerCharge(string $providerCost): string
     {
-        return bcmul($providerCost, '1.25', 9);
+        return $this->roundToNanodollars(bcmul($providerCost, '1.25', 12));
+    }
+
+    private function roundToNanodollars(string $amount): string
+    {
+        return bcadd($amount, self::HALF_NANODOLLAR, 9);
     }
 }

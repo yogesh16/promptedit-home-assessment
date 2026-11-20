@@ -124,6 +124,14 @@ Production must have properly managed queue workers and scheduled tasks.
 
 The `generations:recover` command is scheduled every minute. It polls non-terminal generations as a fallback when a webhook is missed and retries missing image downloads.
 
+Reconcile internal provider costs against Pixelforge's usage report (UTC completion dates, maximum 92-day range):
+
+```bash
+docker compose run --rm --no-deps app php artisan pixelforge:reconcile --start=2026-11-01 --end=2026-11-30
+```
+
+The command exits non-zero when totals differ and never modifies historical financial records.
+
 ## Cloudflare Tunnel (webhook testing)
 
 Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development. Both options below run the official `cloudflare/cloudflared` image — nothing is installed on the host.

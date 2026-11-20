@@ -71,6 +71,51 @@ class FinancialServiceTest extends TestCase
         $this->service->providerCost(['output_tokens' => 100], []);
     }
 
+    public function test_single_token_at_one_dollar_per_million_is_one_micro_dollar(): void
+    {
+        $cost = $this->service->providerCost(
+            ['input_text_tokens' => 1],
+            ['input_text_tokens' => '1.00'],
+        );
+
+        $this->assertSame('0.000001000', $cost);
+        $this->assertSame('0.000001250', $this->service->customerCharge($cost));
+    }
+
+    public function test_one_million_tokens_is_exact(): void
+    {
+        $cost = $this->service->providerCost(
+            ['input_text_tokens' => 1_000_000],
+            ['input_text_tokens' => '5.00'],
+        );
+
+        $this->assertSame('5.000000000', $cost);
+    }
+
+    public function test_provider_cost_rounds_half_up_to_nanodollars(): void
+    {
+        // 1 token × $1.234567 / 1M = 0.000001234567 → 0.000001235.
+        $cost = $this->service->providerCost(
+            ['input_text_tokens' => 1],
+            ['input_text_tokens' => '1.234567'],
+        );
+
+        $this->assertSame('0.000001235', $cost);
+    }
+
+    public function test_customer_charge_rounds_half_up_to_nanodollars(): void
+    {
+        $this->assertSame('0.000000001', $this->service->customerCharge('0.000000001'));
+        $this->assertSame('0.000000004', $this->service->customerCharge('0.000000003'));
+        $this->assertSame('0.000000005', $this->service->customerCharge('0.000000004'));
+    }
+
+    public function test_customer_charge_keeps_documented_precision(): void
+    {
+        $this->assertSame('0.058593750', $this->service->customerCharge('0.046875000'));
+        $this->assertSame('1.250000000', $this->service->customerCharge('1.000000000'));
+    }
+
     /**
      * @return array<string, string>
      */
