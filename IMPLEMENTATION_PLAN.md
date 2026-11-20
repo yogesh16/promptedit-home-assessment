@@ -178,6 +178,7 @@ Phase 4:
 - Desktop table and mobile card layouts share the same data.
 - Flash messages are now shared through Inertia.
 - Sidebar navigation fixed (items used `url` while links read `href`); GitHub/Documentation footer links removed; the default Welcome landing page was deleted and `/` now redirects guests to login and authenticated users to the dashboard.
+- Dashboard cards show credit balance, generation counts/active work, total spent, success rate, recent generations, and (for admins) today's provider cost, customer charges and profit.
 - Tests: 102 passing (363 assertions); `npm run build` and `npm run lint` pass.
 
 Test database isolation:
@@ -217,7 +218,7 @@ Phase 8:
 - Admin-only `/admin/reports` provides daily and per-user provider cost, customer charges and profit, plus on-demand Pixelforge usage reconciliation with per-day differences.
 - `php artisan users:promote {email}` grants administrator access.
 - `php artisan migrate --seed` creates an idempotent default administrator from `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` (defaults: `admin@promptedit.test` / `password`).
-- Tests: 148 passing (680 assertions); frontend build and lint pass.
+- Tests: 150 passing (738 assertions); frontend build and lint pass.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 
