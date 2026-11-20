@@ -46,6 +46,9 @@ class EndToEndGenerationFlowTest extends TestCase
         $user = User::sole();
         $this->assertAuthenticatedAs($user);
 
+        $this->post('/credits', ['amount' => 100])->assertRedirect();
+        $this->assertSame('100.000000000', $user->fresh()->credit_balance);
+
         $this->postJson('/generations/estimate', [
             'prompt' => 'aaaa',
             'size' => '1024x1024',

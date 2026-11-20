@@ -15,10 +15,8 @@ AI image-generation application built with Laravel, Vue 3, Inertia.js and Pixelf
 - Generation history.
 - Webhook processing.
 - Generated image previews.
-
-Optional features:
-- Admin financial reporting.
-- Simulated credit balance.
+- Simulated credit balance with transaction history and purchase flow.
+- Admin daily and per-user financial reporting with Pixelforge usage reconciliation.
 
 ## Technology
 
@@ -78,10 +76,23 @@ cp .env.example .env
 docker compose run --rm --no-deps app php artisan key:generate
 ```
 
-Run migrations:
+Run migrations and seed the default administrator:
 
 ```bash
-docker compose run --rm --no-deps app php artisan migrate
+docker compose run --rm --no-deps app php artisan migrate --seed
+```
+
+Default administrator credentials:
+
+| Field | Value |
+|---|---|
+| Email | `admin@promptedit.test` |
+| Password | `password` |
+
+The seeder is idempotent — running it again will not create duplicates or reset an existing password. Change the password after first login, or set `ADMIN_NAME`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before seeding. To seed an existing installation:
+
+```bash
+docker compose run --rm --no-deps app php artisan db:seed --class=AdminUserSeeder
 ```
 
 The application is then available at `http://app.promptedit-home-assessment.orb.local`.
@@ -104,9 +115,13 @@ PIXELFORGE_API_KEY=
 PIXELFORGE_WEBHOOK_SECRET=
 
 CLOUDFLARE_TUNNEL_TOKEN=
+
+ADMIN_NAME="PromptEdit Admin"
+ADMIN_EMAIL=admin@promptedit.test
+ADMIN_PASSWORD=password
 ```
 
-`CLOUDFLARE_TUNNEL_TOKEN` is only used by the optional `cloudflared` service (see Cloudflare Tunnel below).
+`CLOUDFLARE_TUNNEL_TOKEN` is only used by the optional `cloudflared` service (see Cloudflare Tunnel below). `ADMIN_*` values are used by `AdminUserSeeder` when running `php artisan migrate --seed`.
 
 Database credentials for Docker are set in `docker-compose.yml`. Use the actual database driver and environment variables implemented by the application.
 
@@ -136,6 +151,18 @@ docker compose run --rm --no-deps app php artisan pixelforge:reconcile --start=2
 ```
 
 The command exits non-zero when totals differ and never modifies historical financial records.
+
+## Credits and admin reporting
+
+Users purchase simulated credits on `/credits` (no real payment gateway). A generation is accepted only when the balance covers the estimated maximum customer charge; the actual customer charge is deducted once, after a successful generation. Failed generations are free.
+
+Grant administrator access to a user:
+
+```bash
+docker compose run --rm --no-deps app php artisan users:promote you@example.com
+```
+
+Administrators can open `/admin/reports` for daily and per-user provider cost, customer charges and profit, plus an optional on-demand Pixelforge usage reconciliation check.
 
 ## Cloudflare Tunnel (webhook testing)
 

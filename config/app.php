@@ -123,4 +123,10 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'admin' => [
+        'name' => env('ADMIN_NAME', 'PromptEdit Admin'),
+        'email' => env('ADMIN_EMAIL', 'admin@promptedit.test'),
+        'password' => env('ADMIN_PASSWORD', 'password'),
+    ],
+
 ];

@@ -9,7 +9,10 @@ use UnexpectedValueException;
 
 class GenerationProcessor
 {
-    public function __construct(private readonly FinancialService $financial) {}
+    public function __construct(
+        private readonly FinancialService $financial,
+        private readonly CreditService $credits,
+    ) {}
 
     /**
      * Apply a Pixelforge generation object to the correlated local generation.
@@ -125,6 +128,8 @@ class GenerationProcessor
             $generation->error_message = null;
             $generation->completed_at = $this->timestamp($object['completed_at'] ?? null) ?? now();
             $generation->image_url_expires_at = $this->timestamp($object['image_url_expires_at'] ?? null);
+
+            $this->credits->charge($generation);
 
             return;
         }

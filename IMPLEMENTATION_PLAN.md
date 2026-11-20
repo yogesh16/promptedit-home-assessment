@@ -124,12 +124,12 @@ Refer to the `pixelforge-api` skill for all provider-specific requirements.
 
 Only after core functionality is complete:
 
-- [ ] Implement admin daily reporting.
-- [ ] Implement per-user financial reporting.
-- [ ] Implement provider usage reconciliation dashboard.
-- [ ] Implement simulated credit purchases.
-- [ ] Implement credit balance validation.
-- [ ] Add optional feature tests.
+- [x] Implement admin daily reporting.
+- [x] Implement per-user financial reporting.
+- [x] Implement provider usage reconciliation dashboard.
+- [x] Implement simulated credit purchases.
+- [x] Implement credit balance validation.
+- [x] Add optional feature tests.
 
 **Deliverable:** Additional assessment features.
 
@@ -137,9 +137,9 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 7 — Deployment
+**Current phase:** Phase 7 — Deployment (still outstanding)
 
-Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle), Phase 4 (user interface), Phase 5 (financial verification) and Phase 6 (end-to-end testing) are complete.
+Phases 0–6 and optional Phase 8 are complete. Phase 8 was implemented at the user's request ahead of deployment.
 
 Phase 1:
 
@@ -207,6 +207,17 @@ Phase 6:
 - Production frontend build (`npm run build`) and lint pass.
 - Full suite: 127 passing (506 assertions).
 - Live Pixelforge `[succeed]`/`[fail]`/`[duplicate]` smoke tests are pending real credentials; `PIXELFORGE_API_KEY` and `PIXELFORGE_WEBHOOK_SECRET` are not configured locally.
+
+Phase 8:
+
+- `users.is_admin` and `users.credit_balance` (9-decimal) plus a `credit_transactions` ledger with a unique generation reference.
+- `CreditService` performs atomic purchases and charges with bcmath; charges are idempotent and recorded only for successful generations.
+- Submission is rejected unless the balance covers the estimated maximum customer charge; the actual charge is deducted on success.
+- `/credits` shows the balance, simulated purchases and the user's transaction history.
+- Admin-only `/admin/reports` provides daily and per-user provider cost, customer charges and profit, plus on-demand Pixelforge usage reconciliation with per-day differences.
+- `php artisan users:promote {email}` grants administrator access.
+- `php artisan migrate --seed` creates an idempotent default administrator from `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` (defaults: `admin@promptedit.test` / `password`).
+- Tests: 148 passing (680 assertions); frontend build and lint pass.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

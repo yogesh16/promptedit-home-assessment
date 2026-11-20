@@ -6,6 +6,7 @@ use App\Exceptions\PixelforgeApiException;
 use App\Http\Requests\StoreGenerationRequest;
 use App\Jobs\SubmitGenerationJob;
 use App\Models\Generation;
+use App\Services\CreditService;
 use App\Services\PricingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -45,11 +46,17 @@ class GenerationController extends Controller
         ]);
     }
 
-    public function store(StoreGenerationRequest $request, PricingService $pricing): RedirectResponse
+    public function store(StoreGenerationRequest $request, PricingService $pricing, CreditService $credits): RedirectResponse
     {
         $data = $request->validated();
         $referenceImages = array_values($data['reference_images'] ?? []);
         $estimate = $this->estimatedCost($pricing, $data, $referenceImages);
+
+        if (! $credits->hasSufficientBalance($request->user(), $estimate['estimated_cost_max'])) {
+            throw ValidationException::withMessages([
+                'credits' => 'Insufficient credits for this generation. Please add credits before submitting.',
+            ]);
+        }
 
         $generation = $request->user()->generations()->create([
             'prompt' => $data['prompt'],

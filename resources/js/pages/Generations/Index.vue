@@ -54,6 +54,12 @@ const referenceErrors = computed(() =>
 
 const pricingError = computed(() => (form.errors as Record<string, string | undefined>).pricing);
 
+const creditsError = computed(() => (form.errors as Record<string, string | undefined>).credits);
+
+const creditBalance = computed(() => page.props.auth.user.credit_balance);
+
+const insufficientCredits = computed(() => estimate.value !== null && Number(creditBalance.value) < Number(estimate.value.max));
+
 const statusClasses: Record<string, string> = {
     queued: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
     processing: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
@@ -356,14 +362,26 @@ function statusLabel(status: Generation['status']): string {
                             </div>
                         </div>
                         <InputError class="mt-2" :message="pricingError" />
+
+                        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-sidebar-border/50 pt-3 text-xs">
+                            <span class="text-muted-foreground">
+                                Balance:
+                                <span class="font-medium text-foreground">{{ formatCost(creditBalance) }}</span>
+                            </span>
+                            <Link :href="route('credits.index')" class="text-primary underline">Add credits</Link>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-3 md:col-span-2">
-                        <Button type="submit" :disabled="form.processing || estimating">
+                    <div class="flex flex-wrap items-center gap-3 md:col-span-2">
+                        <Button type="submit" :disabled="form.processing || estimating || insufficientCredits">
                             <LoaderCircle v-if="form.processing" class="animate-spin" />
                             Generate
                         </Button>
                         <span v-if="form.processing" class="text-sm text-muted-foreground">Queueing your generation…</span>
+                        <span v-else-if="insufficientCredits" class="text-sm text-red-600 dark:text-red-400">
+                            Insufficient credits for this estimate. Add credits to continue.
+                        </span>
+                        <InputError :message="creditsError" />
                     </div>
                 </form>
             </section>
