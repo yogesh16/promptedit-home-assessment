@@ -122,7 +122,54 @@ docker compose run --rm --no-deps app php artisan schedule:work
 
 Production must have properly managed queue workers and scheduled tasks.
 
-Pixelforge webhook URLs must be publicly reachable. For local development, expose the app with a Cloudflare Tunnel and register the public URL in the Pixelforge dashboard.
+## Cloudflare Tunnel (webhook testing)
+
+Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development. Both options below run the official `cloudflare/cloudflared` image — nothing is installed on the host.
+
+The tunnel fronts the app's fallback port (`localhost:8080`). Once the webhook endpoint exists, register `<tunnel-url>/webhooks/pixelforge` as the webhook URL in the Pixelforge dashboard (use the local API key's settings).
+
+### Quick tunnel (temporary URL, no Cloudflare account)
+
+```bash
+docker run --rm -it cloudflare/cloudflared tunnel --url http://host.docker.internal:8080
+```
+
+Copy the printed `https://…trycloudflare.com` URL. It is random and changes on every restart — update the webhook URL in the Pixelforge dashboard after each restart.
+
+### Named tunnel (stable URL, recommended)
+
+One-time setup — authenticate, create the tunnel and point DNS at the app (each command opens/prints a URL you complete in the browser):
+
+```bash
+V=promptedit-cloudflared
+
+docker run --rm -it -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel login
+docker run --rm -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel create promptedit
+docker run --rm -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel route dns promptedit webhooks.yourdomain.com
+```
+
+Create `docker/cloudflared.yml` (adjust the hostname) and mount it as the tunnel config:
+
+```yaml
+tunnel: promptedit
+credentials-file: /home/nonroot/.cloudflared/promptedit.json
+
+ingress:
+  - hostname: webhooks.yourdomain.com
+    service: http://host.docker.internal:8080
+  - service: http_status:404
+```
+
+Run the tunnel:
+
+```bash
+docker run --rm -it \
+  -v promptedit-cloudflared:/home/nonroot/.cloudflared \
+  -v "$(pwd)/docker/cloudflared.yml:/home/nonroot/.cloudflared/config.yml:ro" \
+  cloudflare/cloudflared tunnel run promptedit
+```
+
+The stable URL `https://webhooks.yourdomain.com/webhooks/pixelforge` can then be registered once in the Pixelforge dashboard.
 
 ## Testing
 
