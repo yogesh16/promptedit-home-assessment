@@ -60,6 +60,7 @@ Services:
 | `db` | PostgreSQL 17 | port `5432` |
 | `queue` | Queue worker | — |
 | `scheduler` | Task scheduler | — |
+| `cloudflared` | Cloudflare Tunnel (profile `tunnel`) | — |
 
 OrbStack resolves `*.orb.local` automatically. `http://localhost:8080` also reaches the app as a fallback.
 
@@ -101,7 +102,11 @@ DB_HOST=db
 PIXELFORGE_BASE_URL=https://pixelforge.promptedit.dev/v1
 PIXELFORGE_API_KEY=
 PIXELFORGE_WEBHOOK_SECRET=
+
+CLOUDFLARE_TUNNEL_TOKEN=
 ```
+
+`CLOUDFLARE_TUNNEL_TOKEN` is only used by the optional `cloudflared` service (see Cloudflare Tunnel below).
 
 Database credentials for Docker are set in `docker-compose.yml`. Use the actual database driver and environment variables implemented by the application.
 
@@ -134,9 +139,58 @@ The command exits non-zero when totals differ and never modifies historical fina
 
 ## Cloudflare Tunnel (webhook testing)
 
-Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development. Both options below run the official `cloudflare/cloudflared` image — nothing is installed on the host.
+Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development.
 
-The tunnel fronts the app's fallback port (`localhost:8080`). Once the webhook endpoint exists, register `<tunnel-url>/webhooks/pixelforge` as the webhook URL in the Pixelforge dashboard (use the local API key's settings).
+The tunnel must target `http://host.docker.internal:8080` (the published `app` port). Do **not** use `*.orb.local` as the origin — it resolves only on the host and is unreachable from containers.
+
+### Dashboard-managed tunnel (token, recommended)
+
+1. In the Cloudflare dashboard: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Copy the connector token.
+2. Add it to `.env` (never commit it):
+   ```dotenv
+   CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
+   ```
+3. Start the tunnel service:
+   ```bash
+   docker compose --profile tunnel up -d cloudflared
+   ```
+4. In the tunnel’s **Public Hostname** tab, add a route:
+
+   | Field | Value |
+   |---|---|
+   | Subdomain / Domain | `promptedit.yourdomain.com` |
+   | Path | leave empty |
+   | Service type | `HTTP` |
+   | URL | `host.docker.internal:8080` |
+
+   Save. Cloudflare creates the DNS record automatically and pushes the ingress config to the connector.
+5. Verify the tunnel from the host:
+   ```bash
+   curl -i https://promptedit.yourdomain.com/up
+   curl -i -X POST https://promptedit.yourdomain.com/webhooks/pixelforge
+   ```
+   Expect `200` for `/up` and `400` for the webhook without a valid signature.
+6. In the Pixelforge dashboard, edit the local API key: set its webhook URL to `https://promptedit.yourdomain.com/webhooks/pixelforge` and copy its signing secret (`whsec_…`).
+7. Set the secret and restart the app and worker:
+   ```bash
+   # .env
+   PIXELFORGE_WEBHOOK_SECRET=whsec_...
+   ```
+   ```bash
+   docker compose up -d app queue
+   ```
+8. Click **Send test event** in Pixelforge and confirm the endpoint returns `204`:
+   ```bash
+   docker compose logs -f cloudflared app queue
+   ```
+9. Stop the tunnel when finished:
+   ```bash
+   docker compose --profile tunnel stop cloudflared
+   ```
+
+Changing `APP_URL` is only required when browsing the whole app through the tunnel (redirects and assets use it). Webhook delivery itself does not depend on `APP_URL`.
+
+Rotate the tunnel token if it has been shared or exposed. Store it only in `.env` or your deployment secret manager.
 
 ### Quick tunnel (temporary URL, no Cloudflare account)
 
@@ -146,7 +200,7 @@ docker run --rm -it cloudflare/cloudflared tunnel --url http://host.docker.inter
 
 Copy the printed `https://…trycloudflare.com` URL. It is random and changes on every restart — update the webhook URL in the Pixelforge dashboard after each restart.
 
-### Named tunnel (stable URL, recommended)
+### Locally-managed named tunnel (credentials file)
 
 One-time setup — authenticate, create the tunnel and point DNS at the app (each command opens/prints a URL you complete in the browser):
 
