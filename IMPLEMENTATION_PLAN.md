@@ -66,15 +66,15 @@ Refer to the `pixelforge-api` skill for all provider-specific requirements.
 
 ## Phase 4 — User interface
 
-- [ ] Build generation submission form.
-- [ ] Add size and quality selection.
-- [ ] Add reference URL inputs.
-- [ ] Display estimated cost.
-- [ ] Build generation history.
-- [ ] Display generation statuses.
-- [ ] Display successful image previews.
-- [ ] Add loading, empty and error states.
-- [ ] Verify responsive behaviour.
+- [x] Build generation submission form.
+- [x] Add size and quality selection.
+- [x] Add reference URL inputs.
+- [x] Display estimated cost.
+- [x] Build generation history.
+- [x] Display generation statuses.
+- [x] Display successful image previews.
+- [x] Add loading, empty and error states.
+- [x] Verify responsive behaviour.
 
 **Deliverable:** Complete user-facing generation experience.
 
@@ -137,9 +137,9 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 4 — User interface
+**Current phase:** Phase 5 — Financial verification
 
-Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration) and Phase 3 (generation lifecycle) are complete.
+Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration), Phase 3 (generation lifecycle) and Phase 4 (user interface) are complete.
 
 Phase 1:
 
@@ -167,6 +167,17 @@ Phase 3:
 - Generated images are downloaded to the private `local` disk as validated PNGs and served to the owner only via `GET /generations/{generation}/image`.
 - `generations:recover` polls non-terminal generations and retries missing images; scheduled every minute via the `scheduler` service.
 - Tests: 98 passing (342 assertions), including signature, duplicate, out-of-order, early-webhook, financial-idempotency, image and polling-recovery cases.
+
+Phase 4:
+
+- `/generations` combines a submission form and history. Size/quality selects, up to four reference URL rows, prompt counter and inline validation errors.
+- Estimated cost is fetched (debounced) from the existing estimate endpoint and displayed with the 25% markup note before submission.
+- History is shaped server-side to expose only client-relevant fields (`image_url` instead of storage path; no provider id, idempotency key or provider cost).
+- Status badges, estimated/actual amounts, created/completed timestamps, failure messages and owner-only image previews.
+- History auto-refreshes every 5 seconds while any generation is queued or processing; loading, empty and error states are handled.
+- Desktop table and mobile card layouts share the same data.
+- Flash messages are now shared through Inertia.
+- Tests: 99 passing (355 assertions); `npm run build` and `npm run lint` pass.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

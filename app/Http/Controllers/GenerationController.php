@@ -22,7 +22,23 @@ class GenerationController extends Controller
         $generations = $request->user()
             ->generations()
             ->latest('id')
-            ->paginate(10);
+            ->paginate(10)
+            ->through(fn (Generation $generation): array => [
+                'id' => $generation->id,
+                'prompt' => $generation->prompt,
+                'size' => $generation->size,
+                'quality' => $generation->quality,
+                'status' => $generation->status,
+                'estimated_cost_min' => $generation->estimated_cost_min,
+                'estimated_cost_max' => $generation->estimated_cost_max,
+                'customer_charge' => $generation->customer_charge,
+                'image_url' => $generation->image_path !== null
+                    ? route('generations.image', $generation)
+                    : null,
+                'error_message' => $generation->error_message,
+                'completed_at' => $generation->completed_at?->toIso8601String(),
+                'created_at' => $generation->created_at?->toIso8601String(),
+            ]);
 
         return Inertia::render('Generations/Index', [
             'generations' => $generations,

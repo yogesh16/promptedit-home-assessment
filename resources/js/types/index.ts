@@ -20,6 +20,9 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    flash: {
+        success?: string | null;
+    };
     ziggy: {
         location: string;
         url: string;
@@ -46,18 +49,14 @@ export interface Generation {
     prompt: string;
     size: string;
     quality: string;
-    reference_images: string[] | null;
     status: GenerationStatus;
     estimated_cost_min: string | null;
     estimated_cost_max: string | null;
-    provider_cost: string | null;
     customer_charge: string | null;
-    image_path: string | null;
-    error_code: string | null;
+    image_url: string | null;
     error_message: string | null;
     completed_at: string | null;
     created_at: string;
-    updated_at: string;
 }
 
 export interface PaginatedData<T> {

@@ -46,7 +46,25 @@ class GenerationHistoryTest extends TestCase
             fn ($page) => $page
                 ->component('Generations/Index')
                 ->has('generations.data', 2)
-                ->where('generations.data.0.user_id', $user->id)
+                ->where('generations.data.0.id', $user->generations()->latest('id')->first()->id)
+        );
+    }
+
+    public function test_history_exposes_the_image_url_but_not_internal_provider_data(): void
+    {
+        $user = User::factory()->create();
+        $generation = Generation::factory()->succeeded()->for($user)->create([
+            'image_path' => 'generations/test.png',
+        ]);
+
+        $response = $this->actingAs($user)->get('/generations');
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('generations.data.0.image_url', route('generations.image', $generation))
+                ->missing('generations.data.0.provider_generation_id')
+                ->missing('generations.data.0.idempotency_key')
+                ->missing('generations.data.0.provider_cost')
         );
     }
 }
