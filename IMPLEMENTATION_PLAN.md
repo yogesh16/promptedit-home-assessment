@@ -52,15 +52,15 @@ Refer to the `pixelforge-api` skill for all provider-specific requirements.
 
 ## Phase 3 — Generation lifecycle
 
-- [ ] Implement webhook endpoint.
-- [ ] Implement signature verification.
-- [ ] Implement duplicate event protection.
-- [ ] Handle out-of-order events.
-- [ ] Handle early webhook delivery.
-- [ ] Implement successful generation processing.
-- [ ] Implement failed generation processing.
-- [ ] Implement safe financial recording.
-- [ ] Add polling and recovery.
+- [x] Implement webhook endpoint.
+- [x] Implement signature verification.
+- [x] Implement duplicate event protection.
+- [x] Handle out-of-order events.
+- [x] Handle early webhook delivery.
+- [x] Implement successful generation processing.
+- [x] Implement failed generation processing.
+- [x] Implement safe financial recording.
+- [x] Add polling and recovery.
 
 **Deliverable:** Reliable asynchronous generation lifecycle.
 
@@ -137,9 +137,9 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 3 — Generation lifecycle
+**Current phase:** Phase 4 — User interface
 
-Phase 0 (inspection), Phase 1 (application foundation) and Phase 2 (Pixelforge integration) are complete.
+Phase 0 (inspection), Phase 1 (application foundation), Phase 2 (Pixelforge integration) and Phase 3 (generation lifecycle) are complete.
 
 Phase 1:
 
@@ -157,7 +157,16 @@ Phase 2:
 - `SubmitGenerationJob` reuses one persisted idempotency key, respects `Retry-After` plus backoff, fails fast on permanent errors, and re-reads generation state under `lockForUpdate` so early webhooks are never clobbered.
 - Exhausted uncertain submissions are marked `failed` with `submission_uncertain` and remain free; Phase 3 webhook recovery must reconcile these via provider `metadata.generation_id`.
 - Tests use SQLite in memory. `phpunit.xml` overrides both `<env>` and `<server>` because Docker injects `$_SERVER` values that Laravel's dotenv reader prefers.
-- Test suite: 77 passing (PHPUnit, 251 assertions).
+
+Phase 3:
+
+- `POST /webhooks/pixelforge` is registered outside the `web` middleware group (no CSRF/session), verifies the raw body HMAC-SHA256 signature and 300-second timestamp window, deduplicates by provider event id via a unique constraint, and returns `204` after durable acceptance.
+- `webhook_events` stores every event with status/attempts/error; a `ping` event is acknowledged without storage.
+- `GenerationProcessor` owns state transitions under `lockForUpdate`: early webhooks correlate through `metadata.generation_id`, terminal states are never downgraded, provider-failed generations are never revived, and only `submission_uncertain` failures may be reconciled by a late webhook.
+- Success records exact provider cost and customer charge once; duplicates and out-of-order events cannot create a second charge.
+- Generated images are downloaded to the private `local` disk as validated PNGs and served to the owner only via `GET /generations/{generation}/image`.
+- `generations:recover` polls non-terminal generations and retries missing images; scheduled every minute via the `scheduler` service.
+- Tests: 98 passing (342 assertions), including signature, duplicate, out-of-order, early-webhook, financial-idempotency, image and polling-recovery cases.
 
 Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 

@@ -122,6 +122,8 @@ docker compose run --rm --no-deps app php artisan schedule:work
 
 Production must have properly managed queue workers and scheduled tasks.
 
+The `generations:recover` command is scheduled every minute. It polls non-terminal generations as a fallback when a webhook is missed and retries missing image downloads.
+
 ## Cloudflare Tunnel (webhook testing)
 
 Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development. Both options below run the official `cloudflare/cloudflared` image — nothing is installed on the host.
