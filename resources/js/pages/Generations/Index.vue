@@ -40,13 +40,13 @@ function formatCost(value: string | null): string {
                     <h1 class="text-lg font-semibold">Generation history</h1>
                 </div>
 
-                <div v-if="generations.data.length === 0" class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No generations yet.
-                </div>
+                <div v-if="generations.data.length === 0" class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">No generations yet.</div>
 
                 <table v-else class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-sidebar-border/70 text-left text-xs uppercase text-gray-500 dark:border-sidebar-border dark:text-gray-400">
+                        <tr
+                            class="border-b border-sidebar-border/70 text-left text-xs uppercase text-gray-500 dark:border-sidebar-border dark:text-gray-400"
+                        >
                             <th class="p-4">Prompt</th>
                             <th class="p-4">Size</th>
                             <th class="p-4">Quality</th>
@@ -85,7 +85,7 @@ function formatCost(value: string | null): string {
                                 <template v-else>—</template>
                             </td>
                             <td class="p-4">{{ formatCost(generation.customer_charge) }}</td>
-                            <td class="p-4 whitespace-nowrap text-gray-500 dark:text-gray-400">
+                            <td class="whitespace-nowrap p-4 text-gray-500 dark:text-gray-400">
                                 {{ new Date(generation.created_at).toLocaleString() }}
                             </td>
                         </tr>
@@ -96,9 +96,7 @@ function formatCost(value: string | null): string {
                     v-if="generations.last_page > 1"
                     class="flex items-center justify-between border-t border-sidebar-border/70 p-4 text-sm dark:border-sidebar-border"
                 >
-                    <span class="text-gray-500 dark:text-gray-400">
-                        Page {{ generations.current_page }} of {{ generations.last_page }}
-                    </span>
+                    <span class="text-gray-500 dark:text-gray-400"> Page {{ generations.current_page }} of {{ generations.last_page }} </span>
                     <div class="flex gap-2">
                         <Link
                             v-for="link in generations.links"
@@ -106,8 +104,9 @@ function formatCost(value: string | null): string {
                             :href="link.url ?? '#'"
                             class="rounded-md px-2 py-1 hover:bg-sidebar-accent"
                             :class="{ 'pointer-events-none opacity-50': link.url === null }"
-                            v-html="link.label"
-                        />
+                        >
+                            <span v-html="link.label" />
+                        </Link>
                     </div>
                 </div>
             </div>

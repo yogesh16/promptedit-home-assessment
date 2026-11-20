@@ -14,6 +14,8 @@ Route::get('dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('generations', [GenerationController::class, 'index'])->name('generations.index');
+    Route::post('generations', [GenerationController::class, 'store'])->name('generations.store');
+    Route::post('generations/estimate', [GenerationController::class, 'estimate'])->name('generations.estimate');
 });
 
 require __DIR__.'/settings.php';

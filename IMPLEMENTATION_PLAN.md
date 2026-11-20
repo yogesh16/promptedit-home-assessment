@@ -38,13 +38,13 @@ Do not modify application code before the initial inspection and plan are approv
 
 ## Phase 2 — Pixelforge integration
 
-- [ ] Implement provider API client.
-- [ ] Implement pricing retrieval.
-- [ ] Implement generation cost estimation.
-- [ ] Implement generation submission.
-- [ ] Persist provider identifiers and request information.
-- [ ] Handle provider errors and uncertain submissions.
-- [ ] Add focused integration tests.
+- [x] Implement provider API client.
+- [x] Implement pricing retrieval.
+- [x] Implement generation cost estimation.
+- [x] Implement generation submission.
+- [x] Persist provider identifiers and request information.
+- [x] Handle provider errors and uncertain submissions.
+- [x] Add focused integration tests.
 
 **Deliverable:** Reliable generation submission and cost estimation.
 
@@ -137,15 +137,29 @@ Only after core functionality is complete:
 
 ## Current progress
 
-**Current phase:** Phase 2 — Pixelforge integration
+**Current phase:** Phase 3 — Generation lifecycle
 
-Phase 0 (inspection) and Phase 1 (application foundation) are complete:
+Phase 0 (inspection), Phase 1 (application foundation) and Phase 2 (Pixelforge integration) are complete.
+
+Phase 1:
 
 - Docker Compose environment: `app`, `node`, `db` (PostgreSQL 17), `queue`, `scheduler`.
 - Laravel 12 + official Vue/Inertia starter kit with authentication.
 - `generations` data model with unique idempotency key and provider ID constraints.
 - Generation history page with per-user scoping.
-- Test suite: 36 passing (PHPUnit/Pest, in-memory SQLite).
+
+Phase 2:
+
+- `PixelforgeClient` covers `GET /pricing`, `POST /generations`, `GET /generations/{id}`, `GET /generations` and `GET /usage` (the last three are needed by Phase 3 recovery/reconciliation).
+- Auth header, JSON accept, timeouts, bounded retries and structured `PixelforgeApiException` (retryable/uncertain flags).
+- `PricingService` estimates from live pricing rules using bcmath only; estimates are stored and displayed as **customer charges including the 25% markup**.
+- `FinancialService` computes provider cost and customer charge with exact 9-decimal bcmath arithmetic.
+- `SubmitGenerationJob` reuses one persisted idempotency key, respects `Retry-After` plus backoff, fails fast on permanent errors, and re-reads generation state under `lockForUpdate` so early webhooks are never clobbered.
+- Exhausted uncertain submissions are marked `failed` with `submission_uncertain` and remain free; Phase 3 webhook recovery must reconcile these via provider `metadata.generation_id`.
+- Tests use SQLite in memory. `phpunit.xml` overrides both `<env>` and `<server>` because Docker injects `$_SERVER` values that Laravel's dotenv reader prefers.
+- Test suite: 77 passing (PHPUnit, 251 assertions).
+
+Known non-Phase-2 lint debt: `pint --test` still reports style issues in pre-existing starter-kit files, and `prettier --check .` reports pre-existing files. Phase 2 files are formatted.
 
 Do not mark a task complete without verifying it.
 
