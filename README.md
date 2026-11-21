@@ -34,8 +34,8 @@ Do not install PHP, Composer, Node.js or npm on the host. Every application comm
 ## Quick start
 
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/yogesh16/promptedit-home-assessment.git
+cd promptedit-home-assessment
 docker compose up -d --build
 ```
 
