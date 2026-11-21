@@ -5,309 +5,327 @@ AI image-generation application built with Laravel, Vue 3, Inertia.js and Pixelf
 ## Features
 
 - User authentication.
-- AI image generation.
-- Image size and quality selection.
+- AI image generation with size and quality selection.
 - Optional reference image URLs.
-- Upfront cost estimation.
-- Actual cost tracking.
-- 25% customer markup.
-- Asynchronous generation processing.
-- Generation history.
-- Webhook processing.
-- Generated image previews.
-- Simulated credit balance with transaction history and purchase flow.
-- Admin daily and per-user financial reporting with Pixelforge usage reconciliation.
+- Upfront cost estimation and actual cost tracking.
+- 25% customer markup with exact decimal arithmetic.
+- Asynchronous generation processing, webhooks and recovery.
+- Generation history and image previews.
+- Simulated credit balance, purchases and transaction history.
+- Admin daily and per-user financial reporting.
 
 ## Technology
 
 - Laravel 12
 - PHP 8.4
-- Vue 3 + Inertia.js 2 (official Laravel Vue starter kit)
+- Vue 3 + Inertia.js 2
 - PostgreSQL 17
 - Vite 6 + npm
 - Pixelforge API
 
 ## Requirements
 
-- Docker with Docker Compose (OrbStack or equivalent).
-- Pixelforge API credentials (optional for local development until Phase 2).
+- Docker Desktop, OrbStack, or Docker Engine with Compose v2.
+- Free ports `8080` (app), `5175` (Vite) and `5432` (database). All are configurable.
+- Pixelforge API credentials only when generating real images or testing webhooks.
 
-All application commands run inside containers. Do not install PHP, Composer, Node.js or npm on the host.
+Do not install PHP, Composer, Node.js or npm on the host. Every application command runs inside a container.
 
-## Installation
-
-Clone the repository:
+## Quick start
 
 ```bash
 git clone <repository-url>
 cd <repository-directory>
-```
-
-Build and start the environment:
-
-```bash
 docker compose up -d --build
 ```
 
-Services:
+On the first start, the `app` container automatically:
 
-| Service | Purpose | URL |
-|---|---|---|
-| `app` | Laravel (PHP 8.4) | `http://app.promptedit-home-assessment.orb.local` |
-| `node` | Vite dev server | `http://node.promptedit-home-assessment.orb.local` |
-| `db` | PostgreSQL 17 | port `5432` |
-| `queue` | Queue worker | — |
-| `scheduler` | Task scheduler | — |
-| `cloudflared` | Cloudflare Tunnel (profile `tunnel`) | — |
+1. Installs Composer dependencies.
+2. Creates `.env` from `.env.example` when missing.
+3. Generates `APP_KEY`.
+4. Runs database migrations.
+5. Seeds the default administrator.
 
-OrbStack resolves `*.orb.local` automatically. `http://localhost:8080` also reaches the app as a fallback.
+The `node` container installs npm dependencies and starts the Vite dev server.
 
-Install dependencies (first run, or after lockfile changes):
+Wait until `http://localhost:8080/up` responds, then open:
 
-```bash
-docker compose run --rm --no-deps app composer install
-docker compose run --rm --no-deps node npm install
-```
+**http://localhost:8080**
 
-Configure the environment:
-
-```bash
-cp .env.example .env
-docker compose run --rm --no-deps app php artisan key:generate
-```
-
-Run migrations and seed the default administrator:
-
-```bash
-docker compose run --rm --no-deps app php artisan migrate --seed
-```
-
-Default administrator credentials:
+Default administrator:
 
 | Field | Value |
 |---|---|
 | Email | `admin@promptedit.test` |
 | Password | `password` |
 
-The seeder is idempotent — running it again will not create duplicates or reset an existing password. Change the password after first login, or set `ADMIN_NAME`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before seeding. To seed an existing installation:
+Change `ADMIN_NAME`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before the first start if you want different credentials. The seeder is idempotent and never resets an existing password.
+
+Check startup progress with:
 
 ```bash
-docker compose run --rm --no-deps app php artisan db:seed --class=AdminUserSeeder
+docker compose ps
+docker compose logs -f app
 ```
 
-The application is then available at `http://app.promptedit-home-assessment.orb.local`.
+## Services
 
-## Environment configuration
+| Service | Purpose | Local URL |
+|---|---|---|
+| `app` | Laravel HTTP server | `http://localhost:8080` |
+| `node` | Vite dev server | `http://localhost:5175` |
+| `db` | PostgreSQL 17 | `localhost:5432` |
+| `queue` | Queue worker | — |
+| `scheduler` | Task scheduler | — |
+| `cloudflared` | Cloudflare Tunnel (profile `tunnel`) | — |
 
-Configure the following application settings in `.env` as applicable:
+## Configuration
 
-```dotenv
-APP_NAME=PromptEdit
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://app.promptedit-home-assessment.orb.local
+The defaults work without editing anything. To customise, create a local environment file before the first start:
 
-DB_CONNECTION=pgsql
-DB_HOST=db
-
-PIXELFORGE_BASE_URL=https://pixelforge.promptedit.dev/v1
-PIXELFORGE_API_KEY=
-PIXELFORGE_WEBHOOK_SECRET=
-
-CLOUDFLARE_TUNNEL_TOKEN=
-
-ADMIN_NAME="PromptEdit Admin"
-ADMIN_EMAIL=admin@promptedit.test
-ADMIN_PASSWORD=password
+```bash
+cp .env.example .env
 ```
 
-`CLOUDFLARE_TUNNEL_TOKEN` is only used by the optional `cloudflared` service (see Cloudflare Tunnel below). `ADMIN_*` values are used by `AdminUserSeeder` when running `php artisan migrate --seed`.
+Then edit `.env` and restart:
 
-Database credentials for Docker are set in `docker-compose.yml`. Use the actual database driver and environment variables implemented by the application.
+```bash
+docker compose up -d
+```
 
-Never commit API keys or webhook secrets.
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_URL` | `http://localhost:8080` | URL used for generated links and assets |
+| `APP_PORT` | `8080` | Host port for the app |
+| `VITE_PORT` | `5175` | Host port for the Vite dev server |
+| `VITE_DEV_SERVER_ORIGIN` | derived from `APP_URL` | Public origin of the Vite dev server when not using localhost |
+| `DB_DATABASE` | `promptedit` | PostgreSQL database |
+| `DB_USERNAME` | `promptedit` | PostgreSQL user |
+| `DB_PASSWORD` | `secret` | PostgreSQL password |
+| `DB_FORWARD_PORT` | `5432` | Host port for PostgreSQL |
+| `PIXELFORGE_BASE_URL` | `https://pixelforge.promptedit.dev/v1` | Pixelforge API base URL |
+| `PIXELFORGE_API_KEY` | empty | Pixelforge API key |
+| `PIXELFORGE_WEBHOOK_SECRET` | empty | Webhook signing secret |
+| `CLOUDFLARE_TUNNEL_TOKEN` | empty | Token for the optional tunnel service |
+| `ADMIN_NAME` | `PromptEdit Admin` | Seeded administrator name |
+| `ADMIN_EMAIL` | `admin@promptedit.test` | Seeded administrator email |
+| `ADMIN_PASSWORD` | `password` | Seeded administrator password |
+| `RUN_MIGRATIONS` | `1` | Run migrations and seed the admin on app start |
 
-Use separate Pixelforge credentials for local and production environments.
+Notes:
+
+- `DB_HOST` must stay `db` inside Docker.
+- If you change `APP_URL` to a public domain, also update it after your proxy or tunnel is reachable.
+- Changing database credentials after the database volume exists will break the connection. Either keep the defaults or reset the volume (see Troubleshooting).
+- Never commit API keys or webhook secrets.
+
+## Common commands
+
+Run these while the services are up:
+
+```bash
+docker compose ps
+docker compose logs -f app
+
+docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed --class=AdminUserSeeder
+docker compose exec app php artisan users:promote you@example.com
+
+docker compose exec app php artisan test
+docker compose exec node npm run build
+
+docker compose exec app vendor/bin/pint --test
+docker compose exec node npm run lint
+docker compose exec node npm run format:check
+
+docker compose down
+```
+
+For one-off commands when services are not running, use `docker compose run --rm app <command>`.
 
 ## Background processing
 
-The `queue` and `scheduler` services run automatically with `docker compose up`.
+The `queue` and `scheduler` services start automatically with `docker compose up`.
 
-To run commands manually inside containers:
+The `generations:recover` command runs every minute. It polls non-terminal generations when a webhook is missed and retries missing image downloads.
+
+To run a worker or scheduler manually:
 
 ```bash
-docker compose run --rm --no-deps app php artisan queue:work
-docker compose run --rm --no-deps app php artisan schedule:work
+docker compose exec app php artisan queue:work
+docker compose exec app php artisan schedule:work
 ```
 
-Production must have properly managed queue workers and scheduled tasks.
+Production must use properly managed queue workers and scheduled tasks.
 
-The `generations:recover` command is scheduled every minute. It polls non-terminal generations as a fallback when a webhook is missed and retries missing image downloads.
+## Pixelforge
 
-Reconcile internal provider costs against Pixelforge's usage report (UTC completion dates, maximum 92-day range):
+Add credentials to `.env` and restart the services that need them:
+
+```dotenv
+PIXELFORGE_API_KEY=your-api-key
+PIXELFORGE_WEBHOOK_SECRET=whsec_...
+```
 
 ```bash
-docker compose run --rm --no-deps app php artisan pixelforge:reconcile --start=2026-11-01 --end=2026-11-30
+docker compose up -d app queue scheduler
+```
+
+Reconcile internal provider costs against Pixelforge usage (UTC completion dates, maximum 92-day range):
+
+```bash
+docker compose exec app php artisan pixelforge:reconcile --start=2026-11-01 --end=2026-11-30
 ```
 
 The command exits non-zero when totals differ and never modifies historical financial records.
 
-## Credits and admin reporting
+Official API documentation: https://pixelforge.promptedit.dev/docs
 
-Users purchase simulated credits on `/credits` (no real payment gateway). A generation is accepted only when the balance covers the estimated maximum customer charge; the actual customer charge is deducted once, after a successful generation. Failed generations are free.
+Provider integration rules: `.opencode/skills/pixelforge-api/SKILL.md`
 
-Grant administrator access to a user:
+## Webhooks and public URLs
 
-```bash
-docker compose run --rm --no-deps app php artisan users:promote you@example.com
-```
+Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost` and private addresses are rejected, so use a tunnel during local development.
 
-Administrators can open `/admin/reports` for daily and per-user provider cost, customer charges and profit, plus an optional on-demand Pixelforge usage reconciliation check.
+### Cloudflare Tunnel (recommended)
 
-## Cloudflare Tunnel (webhook testing)
-
-Pixelforge only delivers webhooks to public HTTP(S) URLs. `localhost`, `*.orb.local` and private addresses are rejected, so expose the app with a Cloudflare Tunnel during local development.
-
-The tunnel must target `http://host.docker.internal:8080` (the published `app` port). Do **not** use `*.orb.local` as the origin — it resolves only on the host and is unreachable from containers.
-
-### Dashboard-managed tunnel (token, recommended)
-
-1. In the Cloudflare dashboard: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Copy the connector token.
-2. Add it to `.env` (never commit it):
+1. Create a tunnel in the Cloudflare dashboard and copy its token.
+2. Add the token to `.env`:
    ```dotenv
    CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
    ```
-3. Start the tunnel service:
+3. Start the tunnel:
    ```bash
    docker compose --profile tunnel up -d cloudflared
    ```
-4. In the tunnel’s **Public Hostname** tab, add a route:
+4. Add a public hostname route in the Cloudflare dashboard pointing to the published app port:
+   - Service type: `HTTP`
+   - URL: `host.docker.internal:8080`
 
-   | Field | Value |
-   |---|---|
-   | Subdomain / Domain | `promptedit.yourdomain.com` |
-   | Path | leave empty |
-   | Service type | `HTTP` |
-   | URL | `host.docker.internal:8080` |
+   Use `host.docker.internal:<APP_PORT>` if you changed `APP_PORT`.
+5. Register this webhook URL in Pixelforge:
+   ```text
+   https://your-domain.example/webhooks/pixelforge
+   ```
+6. Verify the tunnel from your machine:
+   ```bash
+   curl -i https://your-domain.example/up
+   curl -i -X POST https://your-domain.example/webhooks/pixelforge
+   ```
 
-   Save. Cloudflare creates the DNS record automatically and pushes the ingress config to the connector.
-5. Verify the tunnel from the host:
-   ```bash
-   curl -i https://promptedit.yourdomain.com/up
-   curl -i -X POST https://promptedit.yourdomain.com/webhooks/pixelforge
-   ```
-   Expect `200` for `/up` and `400` for the webhook without a valid signature.
-6. In the Pixelforge dashboard, edit the local API key: set its webhook URL to `https://promptedit.yourdomain.com/webhooks/pixelforge` and copy its signing secret (`whsec_…`).
-7. Set the secret and restart the app and worker:
-   ```bash
-   # .env
-   PIXELFORGE_WEBHOOK_SECRET=whsec_...
-   ```
-   ```bash
-   docker compose up -d app queue
-   ```
-8. Click **Send test event** in Pixelforge and confirm the endpoint returns `204`:
-   ```bash
-   docker compose logs -f cloudflared app queue
-   ```
-9. Stop the tunnel when finished:
+   Expect `200` for `/up` and `400` for the unsigned webhook.
+7. Stop the tunnel when finished:
    ```bash
    docker compose --profile tunnel stop cloudflared
    ```
 
-Changing `APP_URL` is only required when browsing the whole app through the tunnel (redirects and assets use it). Webhook delivery itself does not depend on `APP_URL`.
-
-Rotate the tunnel token if it has been shared or exposed. Store it only in `.env` or your deployment secret manager.
-
-### Quick tunnel (temporary URL, no Cloudflare account)
+### Quick temporary tunnel
 
 ```bash
 docker run --rm -it cloudflare/cloudflared tunnel --url http://host.docker.internal:8080
 ```
 
-Copy the printed `https://…trycloudflare.com` URL. It is random and changes on every restart — update the webhook URL in the Pixelforge dashboard after each restart.
+Use the printed `https://…trycloudflare.com` URL as the webhook base. The URL changes on every restart.
 
-### Locally-managed named tunnel (credentials file)
+## Credits and admin reporting
 
-One-time setup — authenticate, create the tunnel and point DNS at the app (each command opens/prints a URL you complete in the browser):
+Users buy simulated credits on `/credits`; there is no real payment gateway. A generation is accepted only when the balance covers the estimated maximum charge. The actual charge is deducted once after a successful generation, and failed generations are free.
 
-```bash
-V=promptedit-cloudflared
-
-docker run --rm -it -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel login
-docker run --rm -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel create promptedit
-docker run --rm -v $V:/home/nonroot/.cloudflared cloudflare/cloudflared tunnel route dns promptedit webhooks.yourdomain.com
-```
-
-Create `docker/cloudflared.yml` (adjust the hostname) and mount it as the tunnel config:
-
-```yaml
-tunnel: promptedit
-credentials-file: /home/nonroot/.cloudflared/promptedit.json
-
-ingress:
-  - hostname: webhooks.yourdomain.com
-    service: http://host.docker.internal:8080
-  - service: http_status:404
-```
-
-Run the tunnel:
+Promote an existing user to administrator:
 
 ```bash
-docker run --rm -it \
-  -v promptedit-cloudflared:/home/nonroot/.cloudflared \
-  -v "$(pwd)/docker/cloudflared.yml:/home/nonroot/.cloudflared/config.yml:ro" \
-  cloudflare/cloudflared tunnel run promptedit
+docker compose exec app php artisan users:promote you@example.com
 ```
 
-The stable URL `https://webhooks.yourdomain.com/webhooks/pixelforge` can then be registered once in the Pixelforge dashboard.
+Administrators can open `/admin/reports` for daily and per-user provider cost, customer charges and profit, plus an on-demand Pixelforge usage reconciliation check.
 
 ## Testing
 
-Run backend tests:
+Backend tests use an in-memory SQLite database configured in `phpunit.xml` and never touch the development PostgreSQL database:
 
 ```bash
-docker compose run --rm --no-deps app php artisan test
+docker compose exec app php artisan test
 ```
 
-Tests run against an in-memory SQLite database configured in `phpunit.xml`; they never touch the development PostgreSQL database. `tests/TestCase.php` fails fast if an unsafe database connection is configured.
-
-Build frontend assets:
+Frontend build and quality checks:
 
 ```bash
-docker compose run --rm --no-deps node npm run build
+docker compose exec node npm run build
+docker compose exec node npm run lint
+docker compose exec node npm run format:check
+docker compose exec app vendor/bin/pint --test
 ```
 
-Lint and format checks:
+## Troubleshooting
+
+**The app does not become healthy**
 
 ```bash
-docker compose run --rm --no-deps node npm run lint
-docker compose run --rm --no-deps node npm run format:check
-docker compose run --rm --no-deps app vendor/bin/pint --test
+docker compose ps
+docker compose logs -f app
+docker compose logs -f node
+docker compose logs -f db
 ```
 
-## Pixelforge
+The first start installs Composer and npm dependencies, which can take a few minutes.
 
-Official API documentation:
+**A port is already in use**
 
-https://pixelforge.promptedit.dev/docs
+Set alternative host ports in `.env`, then restart:
 
-Provider-specific integration rules are maintained in:
+```dotenv
+APP_PORT=8081
+VITE_PORT=5176
+DB_FORWARD_PORT=5433
+```
 
-`.opencode/skills/pixelforge-api/SKILL.md`
+If you change `APP_PORT`, update `APP_URL` and any tunnel target to match.
 
-## Deployment checklist
+**Frontend assets or hot reload fail when using a domain**
 
-- Production environment configured.
-- Database configured.
-- Migrations executed.
-- Queue workers running.
-- Scheduler configured.
-- HTTPS enabled.
-- Production API credentials configured.
-- Production webhook URL registered.
-- Frontend assets built.
-- Generation flow tested.
+Set the Vite origin to the hostname browsers use and make the Vite port reachable:
+
+```dotenv
+VITE_DEV_SERVER_ORIGIN=https://your-domain.example:5175
+```
+
+Restart the `node` service afterwards.
+
+**Dependencies changed**
+
+Docker installs Composer and npm dependencies automatically when lock files change and the containers restart. To force an update:
+
+```bash
+docker compose exec app composer install
+docker compose exec node npm install
+```
+
+**Reset everything**
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+`-v` removes the database, Composer and npm volumes. All local data is lost.
+
+**Clear Laravel caches**
+
+```bash
+docker compose exec app php artisan optimize:clear
+```
+
+## Production notes
+
+The provided Compose stack is intended for local development. For production, build a release artifact and run it behind a hardened web server instead of bind-mounting the source.
+
+- Configure a production `.env` with `APP_ENV=production` and `APP_DEBUG=false`.
+- Set `RUN_MIGRATIONS=0` and run migrations as a deployment step.
+- Use secure database credentials.
+- Run queue workers and the scheduler under a process supervisor.
+- Serve over HTTPS and register the production webhook URL in Pixelforge.
+- Build frontend assets with `npm run build`.
 
 ## Project documentation
 
@@ -318,9 +336,3 @@ Provider-specific integration rules are maintained in:
 | `IMPLEMENTATION_PLAN.md` | Development progress |
 | `README.md` | Setup and operation |
 | `.opencode/skills/pixelforge-api/SKILL.md` | Pixelforge integration rules |
-
-## Development approach
-
-This project prioritizes correctness, reliability and maintainability over unnecessary architectural complexity.
-
-See `IMPLEMENTATION_PLAN.md` for current development progress.

@@ -7,24 +7,32 @@ services:
       - .:/var/www/html
       - vendor:/var/www/html/vendor
     ports:
-      - "8080:8000"
-    environment: &app-env
-      APP_URL: http://app.promptedit-home-assessment.orb.local
+      - "${APP_PORT:-8080}:8000"
+    environment: &app-environment
+      APP_URL: ${APP_URL:-http://localhost:8080}
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: 5432
-      DB_DATABASE: promptedit
-      DB_USERNAME: promptedit
-      DB_PASSWORD: secret
+      DB_DATABASE: ${DB_DATABASE:-promptedit}
+      DB_USERNAME: ${DB_USERNAME:-promptedit}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
       CACHE_STORE: database
       QUEUE_CONNECTION: database
       SESSION_DRIVER: database
-      PIXELFORGE_BASE_URL: https://pixelforge.promptedit.dev/v1
+      PIXELFORGE_BASE_URL: ${PIXELFORGE_BASE_URL:-https://pixelforge.promptedit.dev/v1}
       PIXELFORGE_API_KEY: ${PIXELFORGE_API_KEY:-}
       PIXELFORGE_WEBHOOK_SECRET: ${PIXELFORGE_WEBHOOK_SECRET:-}
+      RUN_SETUP: "1"
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-1}"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 120s
 
   node:
     image: node:22-bookworm-slim
@@ -34,21 +42,34 @@ services:
       - vendor:/var/www/html/vendor
       - node_modules:/var/www/html/node_modules
     ports:
-      - "5175:5175"
-    command: ["npm", "run", "dev"]
+      - "${VITE_PORT:-5175}:5175"
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      VITE_DEV_SERVER_ORIGIN: ${VITE_DEV_SERVER_ORIGIN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -d node_modules/.bin ] || { [ -f package-lock.json ] && [ package-lock.json -nt node_modules/.package-lock.json ]; }; then
+          npm install --no-audit --no-fund
+        fi
+        npm run dev
 
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: promptedit
-      POSTGRES_USER: promptedit
-      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ${DB_DATABASE:-promptedit}
+      POSTGRES_USER: ${DB_USERNAME:-promptedit}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     ports:
-      - "5432:5432"
+      - "${DB_FORWARD_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U promptedit -d promptedit"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -61,12 +82,15 @@ services:
     volumes:
       - .:/var/www/html
       - vendor:/var/www/html/vendor
-    environment: *app-env
+    environment:
+      <<: *app-environment
+      RUN_SETUP: "0"
+      RUN_MIGRATIONS: "0"
     depends_on:
       db:
         condition: service_healthy
       app:
-        condition: service_started
+        condition: service_healthy
 
   scheduler:
     build:
@@ -76,12 +100,15 @@ services:
     volumes:
       - .:/var/www/html
       - vendor:/var/www/html/vendor
-    environment: *app-env
+    environment:
+      <<: *app-environment
+      RUN_SETUP: "0"
+      RUN_MIGRATIONS: "0"
     depends_on:
       db:
         condition: service_healthy
       app:
-        condition: service_started
+        condition: service_healthy
 
   cloudflared:
     image: cloudflare/cloudflared:latest
